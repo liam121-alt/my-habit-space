@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的自律小世界</title>
+    <style>
+        /* === 基础与全局样式 === */
+        :root {
+            --bg-color: #E8F5E9; --blue-accent: #E3F2FD; --text-main: #2C3E50; --card-bg: #FFFFFF;
+            --green-finish: #81C784; --yellow-part: #FFCA28; --red-miss: #EF5350;
+        }
+        body { margin: 0; padding: 0; background: linear-gradient(135deg, var(--bg-color), var(--blue-accent)); font-family: 'PingFang SC', sans-serif; color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
+        .app-container { width: 100%; max-width: 480px; background-color: rgba(255, 255, 255, 0.4); min-height: 100vh; padding: 20px 15px 190px 15px; box-sizing: border-box; position: relative; }
+        header { text-align: center; font-size: 20px; font-weight: bold; color: #2E7D32; margin-bottom: 20px; letter-spacing: 2px; }
+        .card { background-color: var(--card-bg); border-radius: 20px; padding: 20px; margin-bottom: 15px; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.03); }
+        .card-title { font-size: 16px; font-weight: bold; color: #1565C0; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+        /* === 页面切换与底部导航 === */
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; height: 65px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: space-around; align-items: center; box-shadow: -4px 10px rgba(0,0,0,0.05); z-index: 999; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #95A5A6; font-size: 11px; cursor: pointer; transition: 0.2s; }
+        .nav-item.active { color: #2E7D32; font-weight: bold; transform: translateY(-2px); }
+        .nav-icon { font-size: 20px; }
+
+        /* === 模块一：日历与多月切换样式 === */
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 15px; color: #34495E; font-size: 15px; }
+        .calendar-arrow { cursor: pointer; padding: 4px 10px; background: #F0F4F8; border-radius: 8px; user-select: none; }
+        .calendar-arrow:active { background: #D9E2EC; }
+        .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12px; color: #7F8C8D; margin-bottom: 10px; }
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        .day-cell { aspect-ratio: 1; display: flex; justify-content: center; align-items: center; font-size: 14px; border-radius: 12px; cursor: pointer; background: #F8F9F9; transition: 0.2s; border: 1px solid transparent; }
+        .day-cell.empty-placeholder { background: transparent; cursor: default; }
+        .day-cell:not(.empty-placeholder):active { transform: scale(0.9); }
+        .day-cell.selected { border: 2px solid #1565C0; font-weight: bold; }
+        .status-green { background: var(--green-finish); color: white; }
+        .status-yellow { background: var(--yellow-part); color: white; }
+        .status-red { background: var(--red-miss); color: white; }
+        #dayDetail { margin-top: 15px; padding: 15px; background: #F4F6F7; border-radius: 15px; display: none; }
+        .detail-date { font-weight: bold; color: #2C3E50; margin-bottom: 8px; font-size: 14px; }
+        .detail-content { font-size: 13px; color: #34495E; margin-bottom: 10px; line-height: 1.5; white-space: pre-wrap; }
+        #reflectionInput { width: 100%; height: 70px; border: 1px solid #CFD8DC; border-radius: 10px; padding: 8px; box-sizing: border-box; resize: none; font-family: inherit; font-size: 13px; margin-bottom: 10px; outline: none; }
+        .color-btn-group { display: flex; gap: 8px; }
+        .c-btn { flex: 1; padding: 8px 0; border: none; border-radius: 10px; cursor: pointer; color: white; font-size: 12px; font-weight: bold; }
+        .c-btn.green { background: var(--green-finish); } .c-btn.yellow { background: var(--yellow-part); } .c-btn.red { background: var(--red-miss); }
+
+        .chart-card { margin-top: 15px; background: #F8F9F9; border-radius: 15px; padding: 15px; }
+        .chart-title { font-size: 13px; font-weight: bold; color: #34495E; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .chart-container { display: flex; justify-content: space-around; align-items: flex-end; height: 110px; padding-top: 15px; border-bottom: 1px solid #E0E0E0; position: relative; }
+        .chart-bar-group { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
+        .chart-bar-bg { width: 16px; height: 80px; background: #EAECEE; border-radius: 8px; display: flex; align-items: flex-end; overflow: hidden; }
+        .chart-bar-fill { width: 100%; background: linear-gradient(to top, #81C784, #A5D6A7); border-radius: 8px; transition: height 0.4s ease; }
+        .chart-label { font-size: 11px; color: #7F8C8D; }
+
+        /* === 模块二：核心战场样式 === */
+        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .custom-input { flex: 1; padding: 10px 15px; border: 1px solid #E0E0E0; border-radius: 12px; outline: none; font-size: 14px; }
+        .custom-input:focus { border-color: #81C784; }
+        .add-btn { background-color: #81C784; color: white; border: none; padding: 10px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        #taskList { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .task-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #F8F9F9; border-radius: 12px; font-size: 14px; animation: fadeIn 0.3s ease; }
+        .tag { font-size: 11px; padding: 3px 8px; border-radius: 8px; color: white; }
+        .tag-q1 { background-color: #EF5350; } .tag-q2 { background-color: #42A5F5; } .tag-q3 { background-color: #FFA726; } .tag-q4 { background-color: #B0BEC5; }
+        .energy-cat-zone { text-align: center; padding: 5px 0 15px 0; border-bottom: 1px dashed #E0E0E0; margin-bottom: 15px; }
+        .cat-emoji { font-size: 50px; margin-bottom: 5px; }
+        .energy-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 5px; }
+        .energy-slot { width: 18px; height: 18px; background-color: #FFCA28; border-radius: 50%; transition: 0.3s; }
+        .energy-slot.empty { background-color: #E0E0E0; }
+        .tips { font-size: 12px; color: #7F8C8D; text-align: center; }
+
+        .dancing-cat-box { display: flex; align-items: center; justify-content: center; gap: 12px; background: #F1F8E9; padding: 12px; border-radius: 15px; }
+        .dancing-cat { font-size: 32px; animation: catDance 1.5s infinite ease-in-out; }
+        @keyframes catDance { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(-8deg); } }
+        .cat-slogan { font-size: 13px; font-weight: bold; color: #33691E; letter-spacing: 1px; }
+
+        /* === 模块三：多叶花瓣圆形立体欧式喷泉许愿池 === */
+        #ideaList { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; padding-bottom: 220px; }
+        .idea-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #F8F9F9; border-radius: 12px; font-size: 14px; }
+        .action-btn-group { display: flex; gap: 6px; }
+        .pull-btn { background-color: #42A5F5; color: white; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; cursor: pointer; }
+        .delete-btn { background-color: #CFD8DC; color: white; border: none; padding: 5px 8px; border-radius: 8px; font-size: 11px; cursor: pointer; }
+
+        .pixel-wish-pool {
+            position: fixed;
+            bottom: 68px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 24px);
+            max-width: 420px;
+            background: rgba(236, 239, 241, 0.95);
+            backdrop-filter: blur(8px);
+            border: 2px solid #B0BEC5;
+            border-radius: 20px;
+            padding: 8px 10px 10px 10px;
+            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+            z-index: 900;
+            box-sizing: border-box;
+        }
+
+        .petal-fountain-basin {
+            position: relative;
+            width: 100%;
+            height: 90px;
+            background: linear-gradient(135deg, #CFD8DC 0%, #ECEFF1 100%);
+            border-radius: 35px 35px 25px 25px;
+            border: 3px solid #90A4AE;
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.15), 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .petal-water-surface {
+            position: absolute;
+            width: 92%;
+            height: 76px;
+            background: radial-gradient(circle, #4FC3F7 0%, #0288D1 100%);
+            border-radius: 28px 28px 20px 20px;
+            border: 2px inset #01579B;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 3px 6px rgba(0,0,0,0.3);
+        }
+
+        .water-sparkles {
+            position: absolute;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.85);
+            letter-spacing: 6px;
+            pointer-events: none;
+        }
+
+        .center-sculpture-stack {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3));
+        }
+
+        .sculpture-top-bowl { width: 26px; height: 12px; background: #FFFFFF; border: 2px solid #78909C; border-radius: 50%; margin-bottom: -2px; }
+        .sculpture-mid-bowl { width: 44px; height: 16px; background: #FFFFFF; border: 2px solid #78909C; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .sculpture-pillar { width: 22px; height: 16px; background: linear-gradient(to right, #ECEFF1, #CFD8DC); border-left: 2px solid #78909C; border-right: 2px solid #78909C; display: flex; align-items: center; justify-content: center; }
+
+        .coin-count-badge { font-size: 8px; color: #0D47A1; font-weight: bold; background: rgba(255,255,255,0.8); padding: 1px 4px; border-radius: 4px; }
+        .pixel-pool-title { text-align: center; font-size: 11px; color: #37474F; margin-top: 5px; font-weight: bold; letter-spacing: 1px; }
+
+        .flying-coin-pixel {
+            position: fixed;
+            font-size: 26px;
+            z-index: 1100;
+            pointer-events: none;
+            animation: coinDropIntoPool 0.65s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+        }
+        @keyframes coinDropIntoPool {
+            0% { transform: translate(-50%, -90px) scale(0.5) rotate(0deg); opacity: 0; }
+            40% { opacity: 1; transform: translate(-10%, -40px) scale(1.15) rotate(180deg); }
+            100% { transform: translate(0px, 30px) scale(0.8) rotate(720deg); opacity: 0.95; }
+        }
+
+        .ripple-effect {
+            position: fixed;
+            bottom: 105px;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            width: 36px;
+            height: 36px;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            z-index: 1050;
+            pointer-events: none;
+            animation: rippleSpread 0.5s ease-out forwards;
+        }
+        @keyframes rippleSpread {
+            0% { transform: translateX(-50%) scale(0.2); opacity: 1; }
+            100% { transform: translateX(-50%) scale(2); opacity: 0; }
+        }
+
+        /* === 模块四：自留地 (100件小事) 样式 === */
+        .bucket-header { font-size: 15px; font-weight: bold; color: #2E7D32; margin-bottom: 10px; text-align: center; }
+        .bucket-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        .bucket-item { background: #F8F9F9; border-radius: 12px; padding: 10px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; border: 1px solid #E0E0E0; transition: background 0.3s ease; cursor: pointer; }
+        .bucket-item.completed { background: #FFFDE7; border-color: #FFEE58; }
+        .bucket-row-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .bucket-left { display: flex; align-items: center; gap: 8px; flex: 1; }
+        .bucket-checkbox { width: 18px; height: 18px; accent-color: #4CAF50; cursor: pointer; }
+        .bucket-title-input { border: none; background: transparent; font-size: 13px; color: #2C3E50; width: 100%; outline: none; font-family: inherit; cursor: text; }
+        .bucket-title-input:focus { background: #fff; padding: 2px 5px; border-radius: 4px; border: 1px solid #81C784; }
+        .expand-hint { font-size: 11px; color: #95A5A6; background: #EFEBE9; padding: 2px 6px; border-radius: 6px; }
+        
+        .bucket-details { display: none; flex-direction: column; gap: 8px; padding-top: 6px; border-top: 1px dashed #E0E0E0; cursor: default; }
+        .bucket-details.show { display: flex; }
+        .bucket-text-area { width: 100%; height: 50px; border: 1px solid #CFD8DC; border-radius: 8px; padding: 6px; box-sizing: border-box; font-size: 12px; font-family: inherit; outline: none; resize: none; background: #fff; }
+        .bucket-img-preview { max-width: 100px; max-height: 100px; border-radius: 8px; object-fit: cover; display: none; margin-top: 4px; }
+        .file-upload-label { display: inline-block; background: #E0E0E0; color: #34495E; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; text-align: center; width: fit-content; }
+
+        /* === 公共弹窗样式 === */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(2px); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 20px; width: 80%; max-width: 320px; text-align: center; }
+        .quadrant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .q-btn { padding: 15px 5px; border: none; border-radius: 12px; font-size: 13px; font-weight: bold; color: white; cursor: pointer; }
+        .q-btn-1 { background-color: #EF5350; } .q-btn-2 { background-color: #42A5F5; } .q-btn-3 { background-color: #FFA726; } .q-btn-4 { background-color: #B0BEC5; }
+        .close-modal { background: none; border: none; color: #7F8C8D; text-decoration: underline; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header>🌿 个人专注空间</header>
+
+        <!-- === 页面 1：日历与柱状统计图 === -->
+        <div id="page-1" class="page active">
+            <div class="card">
+                <div class="calendar-header">
+                    <span class="calendar-arrow" onclick="changeMonth(-1)">◀</span>
+                    <span id="currentMonthYearTitle">2026年 8月</span>
+                    <span class="calendar-arrow" onclick="changeMonth(1)">▶</span>
+                </div>
+                <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
+                <div class="days-grid" id="calendarGrid"></div>
+                <div id="dayDetail">
+                    <div class="detail-date" id="detailDateText">8月X日 记录与复盘</div>
+                    <div class="detail-content" id="detailContentDisplay"></div>
+                    <textarea id="reflectionInput" placeholder="写下今天的关键词或心得复盘..."></textarea>
+                    <div style="font-size: 12px; color: #7F8C8D; margin-bottom: 5px;">选择今日完成度并保存：</div>
+                    <div class="color-btn-group">
+                        <button class="c-btn green" onclick="saveRecord('status-green')">🟢 全完成</button>
+                        <button class="c-btn yellow" onclick="saveRecord('status-yellow')">🟡 部分完成</button>
+                        <button class="c-btn red" onclick="saveRecord('status-red')">🔴 没打卡</button>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-title"><span id="chartCardTitle">📊 当月每周打卡表现</span><span id="chartTotalScore" style="font-size: 11px; color: #1565C0;">总得分: 0分</span></div>
+                    <div class="chart-container" id="chartContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- === 页面 2：核心战场 === -->
+        <div id="page-2" class="page">
+            <div class="card">
+                <div class="card-title">🎯 核心战场</div>
+                <div class="energy-cat-zone">
+                    <div class="cat-emoji" id="catFace">🐱✨</div>
+                    <div class="energy-bar" id="energyBar">
+                        <div class="energy-slot"></div><div class="energy-slot"></div>
+                        <div class="energy-slot"></div><div class="energy-slot"></div>
+                        <div class="energy-slot"></div>
+                    </div>
+                    <div class="tips" id="energyTip">今日剩余能量：5 格</div>
+                </div>
+                
+                <div class="dancing-cat-box" style="margin-bottom: 15px;">
+                    <div class="dancing-cat">🐈🐾</div>
+                    <div class="cat-slogan">加油！新的一天又开始了</div>
+                </div>
+
+                <div class="input-group">
+                    <input type="text" id="taskInput" class="custom-input" placeholder="写下今天要做的任务...">
+                    <button class="add-btn" onclick="openModalForTask('')">添加</button>
+                </div>
+                <div id="taskList"></div>
+            </div>
+        </div>
+
+        <!-- === 页面 3：灵感蓄水池 (多叶花瓣圆形立体欧式喷泉版) === -->
+        <div id="page-3" class="page">
+            <div class="card" style="position: relative;">
+                <div class="card-title">💡 灵感蓄水池</div>
+                <div class="tips" style="text-align: left; margin-bottom: 12px;">记录突发奇想的心愿，投币许愿，随时可拉取到今天！</div>
+                <div class="input-group" id="ideaInputGroup">
+                    <input type="text" id="ideaInput" class="custom-input" placeholder="输入一个奇思妙想或心愿...">
+                    <button class="add-btn" onclick="addIdea()" style="background-color: #42A5F5;">存入</button>
+                </div>
+                <div id="ideaList"></div>
+
+                <!-- 悬浮固定底部：精致花瓣圆形立体欧式喷泉许愿池 -->
+                <div class="pixel-wish-pool" id="pixelWishPool">
+                    <div class="petal-fountain-basin">
+                        <div class="petal-water-surface">
+                            <div class="water-sparkles">🪙⚪ ⚪🪙 🪙⚪ ⚪🪙</div>
+                            <!-- 中央双层欧式花瓣立体雕塑 -->
+                            <div class="center-sculpture-stack">
+                                <div class="sculpture-top-bowl"></div>
+                                <div class="sculpture-mid-bowl">
+                                    <span class="coin-count-badge" id="coinPileText">0枚</span>
+                                </div>
+                                <div class="sculpture-pillar"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pixel-pool-title">⛲ 欧式花瓣立体喷泉许愿池 ⛲</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- === 页面 4：自留地 (100件小事) === -->
+        <div id="page-4" class="page">
+            <div class="card">
+                <div class="card-title">☕ 个人自留地</div>
+                <div class="bucket-header">✨ 一个人也可以做的 100 件小事 (2026 一起解锁)</div>
+                <div class="tips" style="margin-bottom: 15px;">点击条目可展开记录；勾选左上角方框可一键保存并自动缩回！</div>
+                <div class="bucket-list" id="bucketList"></div>
+            </div>
+        </div>
+
+        <!-- === 底部导航 === -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="switchTab(1, this)"><span class="nav-icon">📅</span><span>日历</span></div>
+            <div class="nav-item" onclick="switchTab(2, this)"><span class="nav-icon">🎯</span><span>任务</span></div>
+            <div class="nav-item" onclick="switchTab(3, this)"><span class="nav-icon">💡</span><span>灵感</span></div>
+            <div class="nav-item" onclick="switchTab(4, this)"><span class="nav-icon">☕</span><span>自留地</span></div>
+        </nav>
+    </div>
+
+    <!-- 弹窗：为任务选择象限 -->
+    <div class="modal-overlay" id="qModal">
+        <div class="modal-content">
+            <div style="font-weight: bold; margin-bottom: 15px;" id="modalTitleText">为任务分配象限</div>
+            <div class="quadrant-grid">
+                <button class="q-btn q-btn-1" onclick="confirmTask(1, 2, '重要且紧急')">重要紧急<br>(耗2能)</button>
+                <button class="q-btn q-btn-2" onclick="confirmTask(2, 1, '重要不紧急')">重要不紧急<br>(耗1能)</button>
+                <button class="q-btn q-btn-3" onclick="confirmTask(3, 1, '不重要紧急')">不重要紧急<br>(耗1能)</button>
+                <button class="q-btn q-btn-4" onclick="confirmTask(4, 1, '不重要不紧')">不重要不紧<br>(耗1能)</button>
+            </div>
+            <button class="close-modal" onclick="closeModal()">取消</button>
+        </div>
+    </div>
+
+    <script>
+        // === 导航切换 ===
+        function switchTab(pageId, element) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('page-' + pageId).classList.add('active');
+            element.classList.add('active');
+        }
+
+        // === 📅 日历系统（支持 2026年8月 至 2027年12月 动态切换） ===
+        const calendarGrid = document.getElementById('calendarGrid');
+        const dayDetail = document.getElementById('dayDetail');
+        const detailDateText = document.getElementById('detailDateText');
+        const detailContentDisplay = document.getElementById('detailContentDisplay');
+        const reflectionInput = document.getElementById('reflectionInput');
+        const chartContainer = document.getElementById('chartContainer');
+        const chartTotalScore = document.getElementById('chartTotalScore');
+        const currentMonthYearTitle = document.getElementById('currentMonthYearTitle');
+        const chartCardTitle = document.getElementById('chartCardTitle');
+
+        let currentYear = 2026;
+        let currentMonth = 8; // 8代表8月
+        let currentSelectedDayKey = null; // 格式如 "2026-8-15"
+        let myTrackerData = JSON.parse(localStorage.getItem('myTrackerData')) || {};
+
+        // 生成从 2026年8月 到 2027年12月 的合法月份列表用于边界判断
+        const allMonths = [];
+        for (let y = 2026; y <= 2027; y++) {
+            let startM = (y === 2026) ? 8 : 1;
+            let endM = (y === 2027) ? 12 : 12;
+            for (let m = startM; m <= endM; m++) {
+                allMonths.push({ year: y, month: m });
+            }
+        }
+
+        function changeMonth(direction) {
+            let currentIndex = allMonths.findIndex(item => item.year === currentYear && item.month === currentMonth);
+            let newIndex = currentIndex + direction;
+            if (newIndex >= 0 && newIndex < allMonths.length) {
+                currentYear = allMonths[newIndex].year;
+                currentMonth = allMonths[newIndex].month;
+                currentSelectedDayKey = null;
+                dayDetail.style.display = 'none';
+                renderCalendar();
+            }
+        }
+
+        function getDaysInMonth(year, month) {
+            return new Date(year, month, 0).getDate();
+        }
+
+        function getFirstDayOfWeek(year, month) {
+            return new Date(year, month - 1, 1).getDay();
+        }
+
+        function renderCalendar() {
+            currentMonthYearTitle.innerText = `${currentYear}年 ${currentMonth}月`;
+            chartCardTitle.innerText = `📊 ${currentMonth}月每周打卡表现`;
+            calendarGrid.innerHTML = '';
+
+            let totalDays = getDaysInMonth(currentYear, currentMonth);
+            let firstDayIndex = getFirstDayOfWeek(currentYear, currentMonth);
+
+            // 填充当月第一天之前的空白格子
+            for(let i = 0; i < firstDayIndex; i++) {
+                let emptyCell = document.createElement('div');
+                emptyCell.className = 'day-cell empty-placeholder';
+                calendarGrid.appendChild(emptyCell);
+            }
+
+            // 填充当月每一天
+            for (let i = 1; i <= totalDays; i++) {
+                let dayKey = `${currentYear}-${currentMonth}-${i}`;
+                let dayCell = document.createElement('div');
+                dayCell.className = 'day-cell';
+                dayCell.innerText = i;
+                dayCell.id = 'day-cell-' + i;
+
+                if (myTrackerData[dayKey] && myTrackerData[dayKey].status) {
+                    dayCell.classList.add(myTrackerData[dayKey].status);
+                }
+                if (currentSelectedDayKey === dayKey) {
+                    dayCell.classList.add('selected');
+                }
+
+                dayCell.onclick = function() {
+                    document.querySelectorAll('.day-cell').forEach(cell => cell.classList.remove('selected'));
+                    dayCell.classList.add('selected');
+                    currentSelectedDayKey = dayKey;
+                    dayDetail.style.display = 'block';
+                    detailDateText.innerText = `${currentMonth}月${i}日 记录与复盘`;
+                    if (myTrackerData[dayKey] && myTrackerData[dayKey].text) {
+                        reflectionInput.value = myTrackerData[dayKey].text;
+                        detailContentDisplay.innerText = "上次记录：" + myTrackerData[dayKey].text;
+                    } else {
+                        reflectionInput.value = '';
+                        detailContentDisplay.innerText = "今天还没有记录哦，写点什么吧~";
+                    }
+                };
+                calendarGrid.appendChild(dayCell);
+            }
+            renderChart();
+        }
+
+        function saveRecord(statusColor) {
+            if (!currentSelectedDayKey) return;
+            let textContent = reflectionInput.value.trim();
+            myTrackerData[currentSelectedDayKey] = { status: statusColor, text: textContent };
+            localStorage.setItem('myTrackerData', JSON.stringify(myTrackerData));
+            detailContentDisplay.innerText = "已保存：" + (textContent || "（无文字记录）");
+            renderCalendar();
+            let dayNum = currentSelectedDayKey.split('-')[2];
+            let activeCell = document.getElementById('day-cell-' + dayNum);
+            if(activeCell) activeCell.classList.add('selected');
+        }
+
+        function renderChart() {
+            chartContainer.innerHTML = '';
+            let totalDays = getDaysInMonth(currentYear, currentMonth);
+            
+            // 将当月按周切分计算
+            let weeks = [];
+            let startDay = 1;
+            let weekCount = 1;
+            while(startDay <= totalDays) {
+                let firstDayOfWeekNum = new Date(currentYear, currentMonth - 1, startDay).getDay();
+                let daysInThisWeek = Math.min(7 - firstDayOfWeekNum, totalDays - startDay + 1);
+                if (weekCount === 1) {
+                    daysInThisWeek = Math.min(7 - firstDayOfWeekNum, totalDays - startDay + 1);
+                } else {
+                    daysInThisWeek = Math.min(7, totalDays - startDay + 1);
+                }
+                let endDay = startDay + daysInThisWeek - 1;
+                weeks.push({ name: `第${weekCount}周`, start: startDay, end: endDay });
+                startDay = endDay + 1;
+                weekCount++;
+            }
+
+            let grandTotal = 0;
+            weeks.forEach(w => {
+                let weekScore = 0;
+                let maxPossible = (w.end - w.start + 1);
+                for (let d = w.start; d <= w.end; d++) {
+                    let dayKey = `${currentYear}-${currentMonth}-${d}`;
+                    if (myTrackerData[dayKey]) {
+                        if (myTrackerData[dayKey].status === 'status-green') weekScore += 1;
+                        else if (myTrackerData[dayKey].status === 'status-yellow') weekScore += 0.5;
+                    }
+                }
+                grandTotal += weekScore;
+                let percentage = (weekScore / maxPossible) * 100;
+
+                let group = document.createElement('div');
+                group.className = 'chart-bar-group';
+                group.innerHTML = `
+                    <div style="font-size:10px; color:#558B2F; font-weight:bold;">${weekScore}分</div>
+                    <div class="chart-bar-bg">
+                        <div class="chart-bar-fill" style="height: ${percentage}%;"></div>
+                    </div>
+                    <div class="chart-label">${w.name}</div>
+                `;
+                chartContainer.appendChild(group);
+            });
+            chartTotalScore.innerText = `总得分: ${grandTotal}分`;
+        }
+        renderCalendar();
+
+        // === 🎯 核心战场与 💡 灵感蓄水池系统 ===
+        let maxEnergy = 5, currentEnergy = 5, tasks = [];
+        let ideas = JSON.parse(localStorage.getItem('myIdeas')) || [];
+        
+        const taskInput = document.getElementById('taskInput');
+        const ideaInput = document.getElementById('ideaInput');
+        const qModal = document.getElementById('qModal');
+        const taskList = document.getElementById('taskList');
+        const ideaList = document.getElementById('ideaList');
+        const energyBar = document.getElementById('energyBar');
+        const catFace = document.getElementById('catFace');
+        const energyTip = document.getElementById('energyTip');
+        const coinPileText = document.getElementById('coinPileText');
+        let pendingTaskName = '';
+
+        function openModalForTask(taskTextOverride) {
+            pendingTaskName = taskTextOverride || taskInput.value.trim();
+            if (pendingTaskName === '') { alert('请先输入任务内容哦！'); return; }
+            if (currentEnergy <= 0) { alert('今天的能量已经耗尽啦，请把任务存到灵感蓄水池吧~'); return; }
+            qModal.style.display = 'flex';
+        }
+        function closeModal() { qModal.style.display = 'none'; }
+        function confirmTask(priority, cost, label) {
+            if (currentEnergy - cost < 0) { alert('能量不够添加这个维度的任务啦！'); return; }
+            currentEnergy -= cost;
+            updateEnergyDisplay();
+            tasks.push({ name: pendingTaskName, priority: priority, label: label, tagClass: 'tag-q' + priority });
+            tasks.sort((a, b) => a.priority - b.priority);
+            taskInput.value = ''; pendingTaskName = ''; closeModal(); renderTasks();
+        }
+        function renderTasks() {
+            taskList.innerHTML = '';
+            tasks.forEach(task => {
+                taskList.innerHTML += `<div class="task-item"><span>${task.name}</span><span class="tag ${task.tagClass}">${task.label}</span></div>`;
+            });
+        }
+        function updateEnergyDisplay() {
+            if (currentEnergy === 5) catFace.innerText = '🐱✨';
+            else if (currentEnergy >= 3) catFace.innerText = '🐱💦';
+            else if (currentEnergy >= 1) catFace.innerText = '🙀';
+            else catFace.innerText = '🐱💤';
+            energyTip.innerText = `今日剩余能量：${currentEnergy} 格`;
+            let slots = energyBar.children;
+            for (let i = 0; i < maxEnergy; i++) slots[i].classList.toggle('empty', i >= currentEnergy);
+        }
+
+        // 投币动画特效
+        function addIdea() {
+            let val = ideaInput.value.trim();
+            if (val === '') { alert('请输入灵感内容！'); return; }
+            
+            triggerPixelCoinAnimation();
+
+            ideas.push(val); 
+            localStorage.setItem('myIdeas', JSON.stringify(ideas));
+            ideaInput.value = ''; 
+            renderIdeas();
+        }
+
+        function triggerPixelCoinAnimation() {
+            let coin = document.createElement('div');
+            coin.className = 'flying-coin-pixel';
+            coin.innerText = '🪙';
+            coin.style.left = '50%';
+            coin.style.top = 'calc(100vh - 230px)';
+            document.body.appendChild(coin);
+
+            let ripple = document.createElement('div');
+            ripple.className = 'ripple-effect';
+            document.body.appendChild(ripple);
+
+            setTimeout(() => { 
+                coin.remove(); 
+                ripple.remove();
+            }, 650);
+        }
+
+        function renderIdeas() {
+            coinPileText.innerText = `${ideas.length}枚`;
+            ideaList.innerHTML = '';
+            if (ideas.length === 0) {
+                ideaList.innerHTML = '<div style="font-size:12px; color:#95A5A6; text-align:center; padding:20px;">蓄水池正静静等待你的第一枚灵感硬币~</div>';
+                return;
+            }
+            ideas.forEach((idea, index) => {
+                let div = document.createElement('div');
+                div.className = 'idea-item';
+                div.innerHTML = `<span>💡 ${idea}</span><div class="action-btn-group"><button class="pull-btn" onclick="pullIdeaToTask(${index})">拉到今天</button><button class="delete-btn" onclick="deleteIdea(${index})">删除</button></div>`;
+                ideaList.appendChild(div);
+            });
+        }
+        function pullIdeaToTask(index) {
+            let targetIdea = ideas[index];
+            ideas.splice(index, 1); localStorage.setItem('myIdeas', JSON.stringify(ideas));
+            renderIdeas();
+            switchTab(2, document.querySelectorAll('.nav-item')[1]);
+            openModalForTask(targetIdea);
+        }
+        function deleteIdea(index) {
+            ideas.splice(index, 1); localStorage.setItem('myIdeas', JSON.stringify(ideas));
+            renderIdeas();
+        }
+        renderIdeas();
+
+        // === ☕ 模块四：100件小事系统 ===
+        const defaultBucketItems = [
+            "1. 🎬 独自看一场电影", "2. 🍲 一个人去吃火锅", "3. 🌅 早起看一场日出", "4. 🌆 傍晚看一场日落", "5. 🏛️ 一个人去博物馆",
+            "6. 🎨 一个人去美术馆", "7. 🛒 一个人去逛超市", "8. ☕ 一个人去喝咖啡", "9. 🎤 一个人去KTV唱歌", "10. 🍳 一个人去吃Brunch",
+            "11. 🏋️ 一个人去健身", "12. 🚴 沿着江边骑行", "13. 🪂 去公园放风筝", "14. 💍 给自己买一个首饰", "15. 📖 在书店待一下午",
+            "16. 🍳 学做一道新菜", "17. 🖼️ 画一幅画", "18. 🎆 去看一场烟花", "19. 🍰 在家学做甜品", "20. 🍵 煮一壶茶配一本旧书",
+            "21. 🌳 早起去公园散步", "22. 📸 给自己拍一组照片", "23. 🏺 尝试做手工陶艺", "24. 🌧️ 雨天窝在家听音乐", "25. 📱 整理手机相册回忆",
+            "26. ✉️ 写一封信给未来的自己", "27. 🎹 学弹一首简单的曲子", "28. 🍹 做一杯特调饮品", "29. 🌠 夜晚抬头看星星", "30. ☕ 解锁一家新咖啡馆",
+            "31. 🌱 养一盆属于你的绿植", "32. 🍳 早起给自己做一顿早餐", "33. 💆 做一次全身按摩放松", "34. 🧹 给房间做一次大扫除", "35. 🌙 深夜去便利店买关东煮",
+            "36. 🎭 去看一场音乐剧", "37. 👚 整理衣柜断舍离", "38. 🧘 尝试冥想10分钟", "39. 🧁 烘焙一份甜点", "40. ⛵ 去河边放纸船",
+            "41. 🚆 坐一次短途火车旅行", "42. 🎨 涂一幅数字油画", "43. 🍓 去采摘园摘草莓", "44. 🏃 晨跑迎接日出", "45. 🍽️ 做一份精致早餐摆盘",
+            "46. 🖼️ 参观独立艺术展", "47. 🍞 自己烤一次面包", "48. 🌞 在阳台晒太阳发呆", "49. 🧣 尝试织一条围巾", "50. 💃 跟着教程跳一支舞",
+            "51. 🍲 做家乡特色菜解馋", "52. 🛍️ 去旧物市场淘小物件", "53. ✒️ 练习书法静心", "54. 🎢 去游乐园过山车", "55. 🍂 收集秋天的落叶做标本",
+            "56. 🔨 尝试用旧物改造装饰", "57. 📷 学习基础摄影构图", "58. 🎤 录一段自己的声音日记", "59. 🚌 坐公交随机一站下车探索", "60. ✍️ 给自己设计一个签名",
+            "61. 📵 挑战一天不碰手机", "62. 🧩 学折纸或拼图", "63. 🚢 傍晚去码头看船只", "64. 🕯️ 尝试做手工蜡烛", "65. 🎵 听一场线上音乐会",
+            "66. 🌳 记录一年四季窗外同一棵树", "67. ✍️ 尝试用左手写字画画", "68. 💐 去花市挑一束鲜花", "69. 😊 练习微笑给自己打气", "70. 🔮 研究星座或塔罗",
+            "71. 📚 泡图书馆查阅冷门知识", "72. 📋 整理人生愿望清单", "73. 🍓 尝试做果酱或腌菜", "74. 🌙 夜晚点亮香薰看书", "75. 🐾 去动物园认养一只虚拟动物",
+            "76. 💇 学习编发或新发型", "77. 🎸 去 livehouse 听一场演出", "78. 🌿 去植物园认识新的植物", "79. ☕ 研究咖啡拉花", "80. 🎤 看一场话剧或脱口秀",
+            "81. 🧘 去上一节普拉提课", "82. 📔 制作个人手账本", "83. 🪵 尝试做木工小物", "84. 🍇 去农场采摘水果", "85. 🍵 学做手冲咖啡",
+            "86. 🛁 去泡温泉或水疗", "87. ⏰ 连续七天早起", "88. 🍸 为自己调一杯鸡尾酒", "89. 🩹 学习简单急救知识", "90. 👜 用旧衣服做环保袋",
+            "91. ⛺ 尝试露营住一夜", "92. 🤸 练习倒立或平衡", "93. 🗺️ 制作旅行纪念册", "94. 🎵 学习吹口琴或笛子", "95. 🐦 去观鸟或拍昆虫",
+            "96. 🗺️ 研究地图规划旅行", "97. 📸 去拍一组城市夜景", "98. 🎤 练习演讲或朗读", "99. 🎨 收集不同石头彩绘", "100. 🧵 学习简单缝纫补衣服"
+        ];
+
+        let bucketData = JSON.parse(localStorage.getItem('myBucketData')) || {}; 
+        const bucketList = document.getElementById('bucketList');
+
+        function renderBucketList() {
+            bucketList.innerHTML = '';
+            defaultBucketItems.forEach((defaultText, index) => {
+                let itemInfo = bucketData[index] || { title: defaultText, text: '', img: '', isOpen: false };
+                let isCompleted = (itemInfo.text && itemInfo.text.trim() !== '') || (itemInfo.img && itemInfo.img !== '');
+
+                let div = document.createElement('div');
+                div.className = `bucket-item ${isCompleted ? 'completed' : ''}`;
+                
+                div.onclick = function(e) {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'LABEL') return;
+                    toggleBucketDetail(index);
+                };
+
+                div.innerHTML = `
+                    <div class="bucket-row-top">
+                        <div class="bucket-left">
+                            <input type="checkbox" class="bucket-checkbox" ${isCompleted ? 'checked' : ''} onclick="saveAndCollapse(${index}, event)" title="点击打勾保存并自动缩回">
+                            <input type="text" class="bucket-title-input" value="${itemInfo.title}" onchange="updateBucketTitle(${index}, this)">
+                        </div>
+                        <span class="expand-hint">${itemInfo.isOpen ? '▲ 收起' : '▼ 记录'}</span>
+                    </div>
+                    <div class="bucket-details ${itemInfo.isOpen ? 'show' : ''}" id="bucket-detail-${index}">
+                        <textarea class="bucket-text-area" placeholder="写下你的解锁心得或复盘..." onchange="updateBucketText(${index}, this)">${itemInfo.text || ''}</textarea>
+                        <div>
+                            <label class="file-upload-label" for="bucket-file-${index}">📷 上传图片</label>
+                            <input type="file" id="bucket-file-${index}" accept="image/*" style="display:none;" onchange="updateBucketImage(${index}, this)">
+                        </div>
+                        <img id="bucket-img-${index}" class="bucket-img-preview" src="${itemInfo.img || ''}" style="${itemInfo.img ? 'display:block;' : ''}">
+                    </div>
+                `;
+                bucketList.appendChild(div);
+            });
+        }
+
+        function toggleBucketDetail(index) {
+            if(!bucketData[index]) bucketData[index] = { title: defaultBucketItems[index], text: '', img: '', isOpen: false };
+            bucketData[index].isOpen = !bucketData[index].isOpen;
+            saveBucketStorage();
+            renderBucketList();
+        }
+
+        function saveAndCollapse(index, event) {
+            event.stopPropagation();
+            if(!bucketData[index]) bucketData[index] = { title: defaultBucketItems[index], text: '', img: '', isOpen: true };
+            bucketData[index].isOpen = false;
+            saveBucketStorage();
+            renderBucketList();
+        }
+
+        function updateBucketTitle(index, element) {
+            if(!bucketData[index]) bucketData[index] = { title: defaultBucketItems[index], text: '', img: '', isOpen: true };
+            bucketData[index].title = element.value;
+            saveBucketStorage();
+        }
+
+        function updateBucketText(index, element) {
+            if(!bucketData[index]) bucketData[index] = { title: defaultBucketItems[index], text: '', img: '', isOpen: true };
+            bucketData[index].text = element.value;
+            saveBucketStorage();
+        }
+
+        function updateBucketImage(index, inputElement) {
+            let file = inputElement.files[0];
+            if (file) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    if(!bucketData[index]) bucketData[index] = { title: defaultBucketItems[index], text: '', img: '', isOpen: true };
+                    bucketData[index].img = e.target.result;
+                    saveBucketStorage();
+                    renderBucketList();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveBucketStorage() {
+            localStorage.setItem('myBucketData', JSON.stringify(bucketData));
+        }
+
+        renderBucketList();
+    </script>
+</body>
+</html>
